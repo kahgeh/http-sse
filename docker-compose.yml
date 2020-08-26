@@ -1,0 +1,11 @@
+version: "2.0"
+services:
+  web:
+    build: ./webclient
+    command: npm start
+    ports:
+      - "8081:1234"
+  sse-server:
+    build: .
+    ports:
+      - "8080:8080"
