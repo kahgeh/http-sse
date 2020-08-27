@@ -23,6 +23,17 @@ type safeChannel struct {
 	mutex    sync.Mutex
 }
 
+func createClientChannel(clientID string) *safeChannel {
+	newClientChannel := &safeChannel{
+		clientID: clientID,
+		value:    make(chan event),
+		mutex:    sync.Mutex{},
+	}
+	clientChannels[clientID] = newClientChannel
+	log.Printf("created channel for client(%v)", clientID)
+	return newClientChannel
+}
+
 func (c *safeChannel) delete(clientChannelsMap map[string]*safeChannel) {
 	if c == nil {
 		return
@@ -32,7 +43,7 @@ func (c *safeChannel) delete(clientChannelsMap map[string]*safeChannel) {
 	log.Printf("deleting channel %v...", c.clientID)
 	close(c.value)
 	delete(clientChannelsMap, c.clientID)
-	log.Printf("deleting channel %v completed", c.clientID)
+	log.Printf("delete channel %v completed", c.clientID)
 }
 
 func (c *safeChannel) send(event event) {
@@ -44,7 +55,7 @@ func (c *safeChannel) send(event event) {
 	c.value <- event
 }
 
-var clientChannels map[string]*safeChannel = make(map[string]*safeChannel)
+var clientChannels = make(map[string]*safeChannel)
 
 func handlePing() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -53,11 +64,7 @@ func handlePing() http.HandlerFunc {
 }
 
 func sendEvent(w http.ResponseWriter, r *http.Request, clientID string) {
-	clientChannels[clientID] = &safeChannel{
-		clientID: clientID,
-		value:    make(chan event),
-		mutex:    sync.Mutex{},
-	}
+	createClientChannel(clientID)
 	eventChannel := clientChannels[clientID].value
 	defer func() {
 		clientChannels[clientID].delete(clientChannels)
@@ -68,18 +75,16 @@ func sendEvent(w http.ResponseWriter, r *http.Request, clientID string) {
 	for {
 		select {
 		case event := <-eventChannel:
-			log.Printf("handler for %v: receiving event for %v", clientID, event.clientID)
-			if event.clientID == clientID {
-				fmt.Fprintf(w, "data: %s\n\n", event.payload)
-				flusher.Flush()
-				log.Printf("sending event to client %v", clientID)
-			}
+			fmt.Fprintf(w, "data: %s\n\n", event.payload)
+			flusher.Flush()
+			log.Printf("sending event to client %v", clientID)
 
 		case <-r.Context().Done():
 			return
 		}
 	}
 }
+
 func handleConnect(w http.ResponseWriter, r *http.Request, clientID string) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -89,11 +94,13 @@ func handleConnect(w http.ResponseWriter, r *http.Request, clientID string) {
 }
 
 func handleSend(event event) {
+	log.Printf("received send event request to client %v", event.clientID)
 	clientChannel := clientChannels[event.clientID]
 	if clientChannel != nil {
-		log.Printf("receive send event request to client %v", event.clientID)
 		clientChannel.send(event)
+		return
 	}
+	log.Printf("send event request dropped because client(%v) doesn't exist", event.clientID)
 }
 
 func handleEvent() http.HandlerFunc {
