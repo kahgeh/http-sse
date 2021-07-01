@@ -1,0 +1,12 @@
+[package]
+name = "http-sse-server"
+version = "0.1.0"
+authors = ["kahgeh.tan <kahgeh.tan@xero.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "3"
+serde={version="1", features = [ "rc"] }
+time={version="0.3.0-alpha-2", features = ["formatting"] }
