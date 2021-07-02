@@ -7,6 +7,7 @@ use std::borrow::Borrow;
 use time::{format_description,OffsetDateTime};
 
 const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
+const DEFAULT_PORT: u16 = 8080;
 
 struct AppInfo {
     app_name: String,
@@ -29,7 +30,33 @@ impl AppInfo {
 }
 
 struct AppConfig {
+    url_prefix: String,
+    port: u16,
     app_info : Arc<AppInfo>,
+}
+
+impl AppConfig {
+    fn new() -> AppConfig {
+        let url_prefix =match env::var("url_prefix") {
+            Ok(prefix) => prefix,
+            _ => String::from("")
+        };
+
+        let port: u16 =match env::var("port") {
+            Ok(port) => port.parse().unwrap(),
+            _ => DEFAULT_PORT
+        };
+
+        AppConfig {
+            port,
+            url_prefix,
+            app_info: Arc::new(AppInfo::new())
+        }
+    }
+
+    fn get_url_prefix(&self)->String {
+        self.url_prefix.clone()
+    }
 }
 
 #[derive(Serialize)]
@@ -65,21 +92,19 @@ async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
 
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
-    let url_prefix =match env::var("url_prefix") {
-        Ok(prefix) => prefix,
-        _ => String::from("")
-    };
+    let app_config= web::Data::new(AppConfig::new());
+    let url_prefix = app_config.get_url_prefix();
+    let address = format!("0.0.0.0:{}", app_config.port);
+
     HttpServer::new(move ||{
         App::new()
-            .data(AppConfig {
-                app_info: Arc::new(AppInfo::new())
-            })
+            .app_data(app_config.clone())
             .service(
                 web::scope(url_prefix.as_str())
                     .service(ping)
                     .service(app_info))
         })
-        .bind("0.0.0.0:8080")?
+        .bind(address)?
         .run()
         .await
 }
