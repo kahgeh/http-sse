@@ -2,16 +2,30 @@ use std::time::{SystemTime};
 use actix_web::{get, Responder, App, HttpServer, web, HttpResponse};
 use serde::{Serialize};
 use std::sync::*;
+use std::env;
 use std::borrow::Borrow;
 use time::{format_description,OffsetDateTime};
 
-const date_iso_format:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
+const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
 
 struct AppInfo {
     app_name: String,
     git_commit_id: String,
     started : String,
-    // current_time :
+}
+
+impl AppInfo {
+    fn new() -> AppInfo {
+        let git_commit_id=match env::var("git_commit_sha") {
+          Ok(sha) => sha,
+          _ => String::from("local-dev")
+        };
+        AppInfo {
+            app_name: String::from("http-sse-server"),
+            git_commit_id,
+            started: systemtime_strftime(SystemTime::now(), DATE_ISO_FORMAT),
+        }
+    }
 }
 
 struct AppConfig {
@@ -31,10 +45,7 @@ fn systemtime_strftime<T>(dt: T, format: &str) -> String
 {
     let format =  format_description::parse(format).unwrap();
     dt.into().format(&format).unwrap()
-
 }
-
-
 
 #[get("/ping")]
 async fn ping() -> impl Responder {
@@ -48,7 +59,7 @@ async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
         app_name: String::from(app_name),
         git_commit_id: String::from(git_commit_id),
         started: String::from(started),
-        current_time: systemtime_strftime(SystemTime::now(),date_iso_format)
+        current_time: systemtime_strftime(SystemTime::now(),DATE_ISO_FORMAT)
     })
 }
 
@@ -57,11 +68,7 @@ async fn main()-> std::io::Result<()> {
     HttpServer::new(||{
         App::new()
             .data(AppConfig {
-                app_info: Arc::new(AppInfo {
-                    app_name: String::from("http-sse-server"),
-                    git_commit_id: String::from("local-dev"),
-                    started: systemtime_strftime(SystemTime::now(), date_iso_format),
-                })
+                app_info: Arc::new(AppInfo::new())
             })
             .service(ping)
             .service(app_info)
