@@ -1,12 +1,17 @@
 use std::env;
 use config::{ConfigError, Config, File, Environment};
 use serde::{Deserialize};
+
+
 const APP_ENV_PREFIX: &str="SSE_";
 #[derive(Debug, Deserialize)]
 pub struct Settings {
+    pub environment: String,
     pub debug: bool,
     pub port: u16,
     pub url_prefix: String,
+
+    pub log_level: String,
 }
 
 impl Settings {
@@ -19,9 +24,9 @@ impl Settings {
         // Add in the current environment file
         // Default to 'development' env
         // Note that this file is _optional_
-        let env = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
-        s.merge(File::with_name(&format!("config/{}", env)).required(false))?;
-
+        let env_name = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
+        s.merge(File::with_name(&format!("config/{}", env_name)).required(false))?;
+        s.set("environment", env_name)?;
         // Add in a local configuration file
         // This file shouldn't be checked in to git
         s.merge(File::with_name("config/local").required(false))?;
@@ -29,10 +34,7 @@ impl Settings {
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
         s.merge(Environment::with_prefix(APP_ENV_PREFIX))?;
-
         // Now that we're done, let's access our configuration
-        println!("debug: {:?}", s.get_bool("debug"));
-        println!("env: {:?}", env);
 
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()

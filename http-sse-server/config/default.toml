@@ -1,3 +1,5 @@
 debug = "false"
 port = "8080"
 url_prefix = ""
+
+log_level = "INFO"
