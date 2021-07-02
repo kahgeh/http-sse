@@ -1,5 +1,6 @@
 mod settings;
 mod app_ops;
+mod configuration;
 
 use std::time::{SystemTime};
 use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
@@ -10,7 +11,7 @@ use tracing::info;
 
 use crate::settings::Settings;
 use crate::app_ops::*;
-use tracing_subscriber::EnvFilter;
+use crate::configuration::configure_logging;
 
 struct AppState {
     settings: Settings,
@@ -36,7 +37,6 @@ impl AppState {
     fn get_settings(&self)-> (String, bool, String ){
         (self.settings.environment.clone(), self.settings.debug, self.settings.log_level.clone())
     }
-
 }
 
 #[derive(Serialize)]
@@ -46,6 +46,7 @@ struct GetAppInfoResponse {
     started : String,
     current_time : String,
 }
+
 
 #[get("ping")]
 async fn ping() -> impl Responder {
@@ -67,19 +68,13 @@ async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
 async fn main()-> std::io::Result<()> {
     let app_config= web::Data::new(AppState::new());
     let (environment, is_debug, log_level) = app_config.get_settings();
-    tracing_subscriber::fmt()
-        .json()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_env_filter(EnvFilter::from(log_level))
-        .with_current_span(false)
-        .init();
+    configure_logging(&log_level);
 
     info!(Environment=&environment[..], Debug=is_debug, "Application started");
 
     let url_prefix = app_config.get_url_prefix();
     let address = format!("0.0.0.0:{}", app_config.get_port());
 
-    info!("Application Started");
     HttpServer::new(move ||{
         App::new()
             .app_data(app_config.clone())
