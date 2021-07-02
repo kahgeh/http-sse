@@ -1,5 +1,5 @@
 use std::time::{SystemTime};
-use actix_web::{get, Responder, App, HttpServer, web, HttpResponse};
+use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
 use serde::{Serialize};
 use std::sync::*;
 use std::env;
@@ -47,12 +47,12 @@ fn systemtime_strftime<T>(dt: T, format: &str) -> String
     dt.into().format(&format).unwrap()
 }
 
-#[get("/ping")]
+#[get("ping")]
 async fn ping() -> impl Responder {
     format!("pong\n")
 }
 
-#[get("/app-info")]
+#[get("app-info")]
 async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
     let AppInfo {app_name,git_commit_id, started}  = app_config.borrow().app_info.borrow();
     HttpResponse::Ok().json(GetAppInfoResponse{
@@ -65,14 +65,20 @@ async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
 
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
-    HttpServer::new(||{
+    let url_prefix =match env::var("url_prefix") {
+        Ok(prefix) => prefix,
+        _ => String::from("")
+    };
+    HttpServer::new(move ||{
         App::new()
             .data(AppConfig {
                 app_info: Arc::new(AppInfo::new())
             })
-            .service(ping)
-            .service(app_info)
-    })
+            .service(
+                web::scope(url_prefix.as_str())
+                    .service(ping)
+                    .service(app_info))
+        })
         .bind("0.0.0.0:8080")?
         .run()
         .await
