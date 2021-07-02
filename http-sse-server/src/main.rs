@@ -1,3 +1,5 @@
+mod settings;
+
 use std::time::{SystemTime};
 use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
 use serde::{Serialize};
@@ -5,9 +7,10 @@ use std::sync::*;
 use std::env;
 use std::borrow::Borrow;
 use time::{format_description,OffsetDateTime};
+use crate::settings::Settings;
+
 
 const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
-const DEFAULT_PORT: u16 = 8080;
 
 struct AppInfo {
     app_name: String,
@@ -29,33 +32,25 @@ impl AppInfo {
     }
 }
 
-struct AppConfig {
-    url_prefix: String,
-    port: u16,
+struct AppState {
+    settings: Settings,
     app_info : Arc<AppInfo>,
 }
 
-impl AppConfig {
-    fn new() -> AppConfig {
-        let url_prefix =match env::var("url_prefix") {
-            Ok(prefix) => prefix,
-            _ => String::from("")
-        };
-
-        let port: u16 =match env::var("port") {
-            Ok(port) => port.parse().unwrap(),
-            _ => DEFAULT_PORT
-        };
-
-        AppConfig {
-            port,
-            url_prefix,
+impl AppState {
+    fn new() -> AppState {
+        AppState {
+            settings: Settings::new().expect("fail to load settings"),
             app_info: Arc::new(AppInfo::new())
         }
     }
 
     fn get_url_prefix(&self)->String {
-        self.url_prefix.clone()
+        self.settings.url_prefix.clone()
+    }
+
+    fn get_port(&self)->u16 {
+        self.settings.port
     }
 }
 
@@ -80,7 +75,7 @@ async fn ping() -> impl Responder {
 }
 
 #[get("app-info")]
-async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
+async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
     let AppInfo {app_name,git_commit_id, started}  = app_config.borrow().app_info.borrow();
     HttpResponse::Ok().json(GetAppInfoResponse{
         app_name: String::from(app_name),
@@ -92,9 +87,9 @@ async fn app_info(app_config: web::Data<AppConfig>) -> impl Responder {
 
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
-    let app_config= web::Data::new(AppConfig::new());
+    let app_config= web::Data::new(AppState::new());
     let url_prefix = app_config.get_url_prefix();
-    let address = format!("0.0.0.0:{}", app_config.port);
+    let address = format!("0.0.0.0:{}", app_config.get_port());
 
     HttpServer::new(move ||{
         App::new()
