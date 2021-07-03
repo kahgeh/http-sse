@@ -7,11 +7,12 @@ use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
 use serde::{Serialize};
 use std::sync::*;
 use std::borrow::Borrow;
-use tracing::info;
+use tracing::{info};
 
 use crate::settings::Settings;
 use crate::app_ops::*;
-use crate::configuration::configure_logging;
+use crate::configuration::{configure_logging, HttpAppRootSpanBuilder};
+use tracing_actix_web::{TracingLogger};
 
 struct AppState {
     settings: Settings,
@@ -34,8 +35,8 @@ impl AppState {
         self.settings.port
     }
 
-    fn get_settings(&self)-> (String, bool, String ){
-        (self.settings.environment.clone(), self.settings.debug, self.settings.log_level.clone())
+    fn get_settings(&self)-> (String, bool, String, String ){
+        (self.settings.environment.clone(), self.settings.debug, self.settings.log_level.clone(), self.app_info.app_name.clone())
     }
 }
 
@@ -46,7 +47,6 @@ struct GetAppInfoResponse {
     started : String,
     current_time : String,
 }
-
 
 #[get("ping")]
 async fn ping() -> impl Responder {
@@ -67,8 +67,8 @@ async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
     let app_config= web::Data::new(AppState::new());
-    let (environment, is_debug, log_level) = app_config.get_settings();
-    configure_logging(&log_level);
+    let (environment, is_debug, log_level, app_name) = app_config.get_settings();
+    configure_logging(&app_name, &log_level);
 
     info!(Environment=&environment[..], Debug=is_debug, "Application started");
 
@@ -77,6 +77,7 @@ async fn main()-> std::io::Result<()> {
 
     HttpServer::new(move ||{
         App::new()
+            .wrap(TracingLogger::<HttpAppRootSpanBuilder>::new())
             .app_data(app_config.clone())
             .service(
                 web::scope(url_prefix.as_str())
