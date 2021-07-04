@@ -5,7 +5,6 @@ use serde::{Deserialize};
 use actix_web::{get, Responder, HttpResponse};
 use crate::settings::AppSettings;
 use actix_web::web::Data;
-use std::borrow::Borrow;
 use crate::contracts::GetAppInfoResponse;
 
 pub const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
@@ -43,12 +42,6 @@ pub async fn ping() -> impl Responder {
 
 #[get("app-info")]
 pub async fn app_info(app_settings: Data<AppSettings>) -> impl Responder {
-    let app_name = app_settings.app_name.clone();
-    let RuntimeInfo {git_commit_id, started}  = app_settings.runtime_info.borrow();
-    HttpResponse::Ok().json(GetAppInfoResponse{
-        app_name,
-        git_commit_id: String::from(git_commit_id),
-        started: String::from(started),
-        current_time: systemtime_strftime(SystemTime::now(),DATE_ISO_FORMAT)
-    })
+    let response_body:GetAppInfoResponse = app_settings.into();
+    HttpResponse::Ok().json(response_body)
 }
