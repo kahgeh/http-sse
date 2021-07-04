@@ -657,6 +657,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "config",
+ "lazy_static",
  "serde 1.0.126",
  "time 0.3.0-alpha-2",
  "tracing",

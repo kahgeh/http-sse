@@ -1,6 +1,6 @@
 mod settings;
 mod app_ops;
-mod configuration;
+mod logging;
 
 use std::time::{SystemTime};
 use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
@@ -11,19 +11,22 @@ use tracing::{info};
 
 use crate::settings::Settings;
 use crate::app_ops::*;
-use crate::configuration::{configure_logging, HttpAppRootSpanBuilder};
+use crate::logging::{HttpAppRootSpanBuilder, LoggingBuilder, LogSettings};
 use tracing_actix_web::{TracingLogger};
 
+const APP_NAME: &str="http-sse-server";
 struct AppState {
+    app_name: String,
     settings: Settings,
-    app_info : Arc<AppInfo>,
+    runtime_info : Arc<RuntimeInfo>,
 }
 
 impl AppState {
     fn new() -> AppState {
         AppState {
+            app_name: String::from(APP_NAME),
             settings: Settings::new().expect("fail to load settings"),
-            app_info: Arc::new(AppInfo::new())
+            runtime_info: Arc::new(RuntimeInfo::new())
         }
     }
 
@@ -34,9 +37,14 @@ impl AppState {
     fn get_port(&self)->u16 {
         self.settings.port
     }
+}
 
-    fn get_settings(&self)-> (String, bool, String, String ){
-        (self.settings.environment.clone(), self.settings.debug, self.settings.log_level.clone(), self.app_info.app_name.clone())
+impl From<&actix_web::web::Data<AppState>> for LogSettings {
+    fn from(app_state: &actix_web::web::Data<AppState>) -> Self {
+        LogSettings::new(
+            app_state.app_name.as_str(),
+            app_state.settings.log_level.as_str()
+        )
     }
 }
 
@@ -50,14 +58,15 @@ struct GetAppInfoResponse {
 
 #[get("ping")]
 async fn ping() -> impl Responder {
-    format!("pong\n")
+    format!("application running\n")
 }
 
 #[get("app-info")]
 async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
-    let AppInfo {app_name,git_commit_id, started}  = app_config.borrow().app_info.borrow();
+    let app_name = app_config.borrow().app_name.clone();
+    let RuntimeInfo {git_commit_id, started}  = app_config.borrow().runtime_info.borrow();
     HttpResponse::Ok().json(GetAppInfoResponse{
-        app_name: String::from(app_name),
+        app_name,
         git_commit_id: String::from(git_commit_id),
         started: String::from(started),
         current_time: systemtime_strftime(SystemTime::now(),DATE_ISO_FORMAT)
@@ -67,10 +76,11 @@ async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
     let app_config= web::Data::new(AppState::new());
-    let (environment, is_debug, log_level, app_name) = app_config.get_settings();
-    configure_logging(&app_name, &log_level);
 
-    info!(Environment=&environment[..], Debug=is_debug, "Application started");
+    LoggingBuilder::new(app_config.borrow().into())
+        .init_default();
+
+    info!("Application started");
 
     let url_prefix = app_config.get_url_prefix();
     let address = format!("0.0.0.0:{}", app_config.get_port());

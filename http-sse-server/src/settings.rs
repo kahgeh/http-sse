@@ -2,7 +2,6 @@ use std::env;
 use config::{ConfigError, Config, File, Environment};
 use serde::{Deserialize};
 
-
 const APP_ENV_PREFIX: &str="SSE_";
 #[derive(Debug, Deserialize)]
 pub struct Settings {

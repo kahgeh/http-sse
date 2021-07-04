@@ -4,20 +4,18 @@ use std::env;
 
 pub const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
 
-pub struct AppInfo {
-    pub app_name: String,
+pub struct RuntimeInfo {
     pub git_commit_id: String,
     pub started : String,
 }
 
-impl AppInfo {
-    pub fn new() -> AppInfo {
+impl RuntimeInfo {
+    pub fn new() -> RuntimeInfo {
         let git_commit_id=match env::var("git_commit_sha") {
             Ok(sha) => sha,
             _ => String::from("local-dev")
         };
-        AppInfo {
-            app_name: String::from("http-sse-server"),
+        RuntimeInfo {
             git_commit_id,
             started: systemtime_strftime(SystemTime::now(), DATE_ISO_FORMAT),
         }
