@@ -2,10 +2,11 @@ use actix_web::dev::Server;
 use actix_web::{ App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
 use crate::logging::HttpAppRootSpanBuilder;
-use crate::{ping, app_info, AppState};
+use crate::{ping, app_info};
 use std::net::TcpListener;
 use std::io::Error;
 use actix_web::web::Data;
+use crate::settings::AppSettings;
 
 pub struct HttpServerSettings {
     url_prefix: String,
@@ -51,7 +52,7 @@ impl Application {
         }
     }
 
-    pub fn start(&self, app_settings:AppState) -> Result<Server, std::io::Error>{
+    pub fn start(&self, app_settings:AppSettings) -> Result<Server, std::io::Error>{
         let listener = self.settings.create_listener()?;
         let url_prefix = self.settings.url_prefix.clone();
         let server=HttpServer::new( move ||{
