@@ -6,6 +6,8 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{ Error};
 use tracing::Span;
 use std::rc::Rc;
+use crate::settings::AppSettings;
+use actix_web::web::Data;
 
 const HTTP_HEADER_TO_LOG: &str="internal-correlation-id";
 
@@ -15,13 +17,17 @@ pub struct HttpAppRootSpanBuilder {
 impl RootSpanBuilder for HttpAppRootSpanBuilder {
     fn on_request_start(request: &ServiceRequest) -> Span {
         let header_value=match request.headers().get(HTTP_HEADER_TO_LOG){
-            Some(header)=>header.to_str().unwrap(),
-            _=>"none"
+            Some(header)=>String::from(header.to_str().unwrap()),
+            _=>String::from("none")
+        };
+        let git_commit_id= match request.app_data::<Data<AppSettings>>() {
+            Some(app_settings)=> app_settings.runtime_info.git_commit_id.clone(),
+            None => String::from("none")
         };
         tracing_actix_web::root_span!(
             request,
-            correlation_id=header_value,
-            git_commit_id=tracing::field::Empty)
+            correlation_id=header_value.as_str(),
+            git_commit_id=git_commit_id.as_str())
     }
 
     fn on_request_end<B>(span: Span, outcome: &Result<ServiceResponse<B>, Error>) {

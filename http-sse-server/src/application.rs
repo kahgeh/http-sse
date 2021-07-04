@@ -57,8 +57,8 @@ impl Application {
         let url_prefix = self.settings.url_prefix.clone();
         let server=HttpServer::new( move ||{
             App::new()
-                .wrap(TracingLogger::<HttpAppRootSpanBuilder>::new())
                 .app_data(Data::new(app_settings.clone()))
+                .wrap(TracingLogger::<HttpAppRootSpanBuilder>::new())
                 .service(
                     web::scope(url_prefix.as_str())
                         .service(ping)

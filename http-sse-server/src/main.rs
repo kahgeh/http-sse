@@ -23,8 +23,8 @@ async fn ping() -> impl Responder {
 
 #[get("app-info")]
 async fn app_info(app_settings: web::Data<AppSettings>) -> impl Responder {
-    let app_name = app_settings.borrow().app_name.clone();
-    let RuntimeInfo {git_commit_id, started}  = app_settings.borrow().runtime_info.borrow();
+    let app_name = app_settings.app_name.clone();
+    let RuntimeInfo {git_commit_id, started}  = app_settings.runtime_info.borrow();
     HttpResponse::Ok().json(GetAppInfoResponse{
         app_name,
         git_commit_id: String::from(git_commit_id),
