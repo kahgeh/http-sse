@@ -1,9 +1,11 @@
 use time::{format_description,OffsetDateTime};
 use std::time::{SystemTime};
 use std::env;
+use serde::{Deserialize};
 
 pub const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
 
+#[derive(Debug, Deserialize, Clone)]
 pub struct RuntimeInfo {
     pub git_commit_id: String,
     pub started : String,

@@ -1,21 +1,24 @@
 mod settings;
 mod app_ops;
 mod logging;
+mod application;
 
 use std::time::{SystemTime};
-use actix_web::{get,Responder, App, HttpServer, web, HttpResponse};
-use serde::{Serialize};
+use actix_web::{get,Responder, web, HttpResponse};
+use serde::{Serialize, Deserialize};
 use std::sync::*;
 use std::borrow::Borrow;
 use tracing::{info};
 
 use crate::settings::Settings;
 use crate::app_ops::*;
-use crate::logging::{HttpAppRootSpanBuilder, LoggingBuilder, LogSettings};
-use tracing_actix_web::{TracingLogger};
+use crate::logging::{ LoggingBuilder, LogSettings};
+use crate::application::{HttpServerSettings, Application, ApplicationStartUpDisplayInfo};
 
 const APP_NAME: &str="http-sse-server";
-struct AppState {
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AppState {
     app_name: String,
     settings: Settings,
     runtime_info : Arc<RuntimeInfo>,
@@ -29,21 +32,31 @@ impl AppState {
             runtime_info: Arc::new(RuntimeInfo::new())
         }
     }
-
-    fn get_url_prefix(&self)->String {
-        self.settings.url_prefix.clone()
-    }
-
-    fn get_port(&self)->u16 {
-        self.settings.port
-    }
 }
 
-impl From<&actix_web::web::Data<AppState>> for LogSettings {
-    fn from(app_state: &actix_web::web::Data<AppState>) -> Self {
+impl From<AppState> for LogSettings {
+    fn from(app_state: AppState) -> Self {
         LogSettings::new(
             app_state.app_name.as_str(),
             app_state.settings.log_level.as_str()
+        )
+    }
+}
+
+impl From<AppState> for HttpServerSettings {
+    fn from(app_state: AppState) -> Self {
+        HttpServerSettings::new(
+            app_state.settings.borrow().url_prefix.as_str(),
+            app_state.settings.borrow().port,
+            )
+    }
+}
+
+impl From<AppState> for ApplicationStartUpDisplayInfo {
+    fn from(app_state: AppState) -> Self {
+        ApplicationStartUpDisplayInfo::new(
+            app_state.settings.borrow().environment.as_str(),
+            app_state.settings.borrow().debug,
         )
     }
 }
@@ -62,9 +75,9 @@ async fn ping() -> impl Responder {
 }
 
 #[get("app-info")]
-async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
-    let app_name = app_config.borrow().app_name.clone();
-    let RuntimeInfo {git_commit_id, started}  = app_config.borrow().runtime_info.borrow();
+async fn app_info(app_settings: web::Data<AppState>) -> impl Responder {
+    let app_name = app_settings.borrow().app_name.clone();
+    let RuntimeInfo {git_commit_id, started}  = app_settings.borrow().runtime_info.borrow();
     HttpResponse::Ok().json(GetAppInfoResponse{
         app_name,
         git_commit_id: String::from(git_commit_id),
@@ -75,26 +88,15 @@ async fn app_info(app_config: web::Data<AppState>) -> impl Responder {
 
 #[actix_web::main]
 async fn main()-> std::io::Result<()> {
-    let app_config= web::Data::new(AppState::new());
+    let app_settings = AppState::new();
 
-    LoggingBuilder::new(app_config.borrow().into())
+    LoggingBuilder::new(app_settings.clone().into())
         .init_default();
 
-    info!("Application started");
+    let server = Application::new(app_settings.clone().into())
+        .start(app_settings.clone())?;
 
-    let url_prefix = app_config.get_url_prefix();
-    let address = format!("0.0.0.0:{}", app_config.get_port());
-
-    HttpServer::new(move ||{
-        App::new()
-            .wrap(TracingLogger::<HttpAppRootSpanBuilder>::new())
-            .app_data(app_config.clone())
-            .service(
-                web::scope(url_prefix.as_str())
-                    .service(ping)
-                    .service(app_info))
-        })
-        .bind(address)?
-        .run()
-        .await
+    let ApplicationStartUpDisplayInfo{ environment_name, is_debug} = app_settings.into();
+    info!(Environment=&environment_name[..], IsDebug=&is_debug[..], "Application started");
+    server.await
 }

@@ -3,7 +3,7 @@ use config::{ConfigError, Config, File, Environment};
 use serde::{Deserialize};
 
 const APP_ENV_PREFIX: &str="SSE_";
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub environment: String,
     pub debug: bool,
