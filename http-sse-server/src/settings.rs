@@ -2,7 +2,6 @@ use std::env;
 use config::{ConfigError, Config, File, Environment};
 use serde::{Deserialize};
 use crate::app_ops::RuntimeInfo;
-use std::sync::Arc;
 
 const APP_NAME: &str="http-sse-server";
 const APP_ENV_PREFIX: &str="SSE_";
@@ -11,7 +10,7 @@ const APP_ENV_PREFIX: &str="SSE_";
 pub struct AppSettings {
     pub app_name: String,
     pub settings: Settings,
-    pub runtime_info : Arc<RuntimeInfo>,
+    pub runtime_info : RuntimeInfo,
 }
 
 impl AppSettings {
@@ -19,7 +18,7 @@ impl AppSettings {
         AppSettings {
             app_name: String::from(APP_NAME),
             settings: Settings::new().expect("fail to load settings"),
-            runtime_info: Arc::new(RuntimeInfo::new())
+            runtime_info: RuntimeInfo::new()
         }
     }
 }
