@@ -2,11 +2,11 @@ use actix_web::dev::Server;
 use actix_web::{ App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
 use crate::logging::HttpAppRootSpanBuilder;
-use crate::{ping, app_info};
 use std::net::TcpListener;
 use std::io::Error;
 use actix_web::web::Data;
 use crate::settings::AppSettings;
+use crate::app_ops::{ping, app_info};
 
 pub struct HttpServerSettings {
     url_prefix: String,
