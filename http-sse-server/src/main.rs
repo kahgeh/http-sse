@@ -34,8 +34,8 @@ impl AppState {
     }
 }
 
-impl From<AppState> for LogSettings {
-    fn from(app_state: AppState) -> Self {
+impl From<&AppState> for LogSettings {
+    fn from(app_state: &AppState) -> Self {
         LogSettings::new(
             app_state.app_name.as_str(),
             app_state.settings.log_level.as_str()
@@ -43,20 +43,20 @@ impl From<AppState> for LogSettings {
     }
 }
 
-impl From<AppState> for HttpServerSettings {
-    fn from(app_state: AppState) -> Self {
+impl From<&AppState> for HttpServerSettings {
+    fn from(app_state: &AppState) -> Self {
         HttpServerSettings::new(
-            app_state.settings.borrow().url_prefix.as_str(),
-            app_state.settings.borrow().port,
+            app_state.settings.url_prefix.as_str(),
+            app_state.settings.port,
             )
     }
 }
 
-impl From<AppState> for ApplicationStartUpDisplayInfo {
-    fn from(app_state: AppState) -> Self {
+impl From<&AppState> for ApplicationStartUpDisplayInfo {
+    fn from(app_state: &AppState) -> Self {
         ApplicationStartUpDisplayInfo::new(
-            app_state.settings.borrow().environment.as_str(),
-            app_state.settings.borrow().debug,
+            app_state.settings.environment.as_str(),
+            app_state.settings.debug,
         )
     }
 }
@@ -90,13 +90,13 @@ async fn app_info(app_settings: web::Data<AppState>) -> impl Responder {
 async fn main()-> std::io::Result<()> {
     let app_settings = AppState::new();
 
-    LoggingBuilder::new(app_settings.clone().into())
+    LoggingBuilder::new((&app_settings).into())
         .init_default();
 
-    let server = Application::new(app_settings.clone().into())
+    let server = Application::new((&app_settings).into())
         .start(app_settings.clone())?;
 
-    let ApplicationStartUpDisplayInfo{ environment_name, is_debug} = app_settings.into();
+    let ApplicationStartUpDisplayInfo{ environment_name, is_debug} = (&app_settings).into();
     info!(Environment=&environment_name[..], IsDebug=&is_debug[..], "Application started");
     server.await
 }
