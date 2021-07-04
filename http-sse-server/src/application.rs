@@ -7,6 +7,7 @@ use std::io::Error;
 use actix_web::web::Data;
 use crate::settings::AppSettings;
 use crate::app_ops::{ping, app_info};
+use crate::routes::subscribe;
 
 pub struct HttpServerSettings {
     url_prefix: String,
@@ -62,8 +63,10 @@ impl Application {
                 .service(
                     web::scope(url_prefix.as_str())
                         .service(ping)
-                        .service(app_info))
-        })
+                        .service(app_info)
+                        .service(subscribe)
+                )
+            })
             .listen(listener)?
             .run();
 

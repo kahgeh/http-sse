@@ -4,6 +4,7 @@ mod logging;
 mod application;
 mod contracts;
 mod mappers;
+mod routes;
 
 use tracing::{info};
 use crate::settings::{AppSettings};
