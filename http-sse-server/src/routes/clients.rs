@@ -1,6 +1,7 @@
-use actix_web::{get, Responder, HttpResponse, web::{Data}, HttpRequest};
+use actix_web::{get, put, Responder, HttpResponse, web::{Data}, HttpRequest};
 use tracing::{error};
-use crate::sse_exchange::{SseExchange};
+use crate::sse_exchange::{SseExchange, Event};
+use actix_web::web::Bytes;
 
 #[get("/clients/{client_id}/events")]
 pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl Responder {
@@ -20,4 +21,26 @@ pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl
                 .finish()
         }
     }
+}
+
+#[put("/clients/{client_id}/events")]
+pub async fn publish(req: HttpRequest, body: Bytes, sse_exchange: Data<SseExchange>) -> impl Responder {
+    let client_id = req.match_info().query("client_id");
+
+    let result_converting_body_to_string = String::from_utf8(body.to_vec());
+
+    if result_converting_body_to_string.is_err() {
+        error!("there is an issue with the payload");
+        return HttpResponse::BadRequest()
+            .finish();
+    }
+
+    let payload = result_converting_body_to_string.unwrap();
+
+    if !(*sse_exchange).publish(Event::new(client_id, &payload[..])).await {
+        error!("fail to send events");
+        return HttpResponse::InternalServerError()
+            .finish();
+    }
+    HttpResponse::Ok().finish()
 }

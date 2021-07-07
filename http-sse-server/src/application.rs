@@ -7,7 +7,7 @@ use std::io::Error;
 use actix_web::web::Data;
 use crate::settings::AppSettings;
 use crate::app_ops::{ping, app_info};
-use crate::routes::subscribe;
+use crate::routes::{subscribe, publish};
 use tokio::task::JoinHandle;
 
 use crate::sse_exchange::{SseExchange};
@@ -72,6 +72,7 @@ impl Application {
                         .service(ping)
                         .service(app_info)
                         .service(subscribe)
+                        .service(publish)
                 )
             })
             .listen(listener)?

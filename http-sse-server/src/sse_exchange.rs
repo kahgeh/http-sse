@@ -6,7 +6,7 @@ use tokio::task::JoinHandle;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{info,error};
 
-use crate::sse_exchange::Command::{Connect, Shutdown};
+use crate::sse_exchange::Command::{Connect, Shutdown, Publish};
 use crate::sse_exchange::SseExchangeError::FailToEstablishConnection;
 
 #[derive(Debug, Display, Error)]
@@ -39,8 +39,17 @@ pub struct SseExchange {
 }
 
 pub struct Event {
-    client_id: String,
-    payload: String,
+     client_id: String,
+     payload: String,
+}
+
+impl Event {
+    pub fn new(client_id :&str, payload:&str) -> Event {
+        Event {
+            client_id: String::from(client_id),
+            payload: String::from(payload),
+        }
+    }
 }
 
 pub enum Command {
@@ -61,6 +70,10 @@ impl SseExchange {
         Ok(ReceiverStream::new(rx))
     }
 
+    pub async fn publish(&self, event: Event) -> bool {
+        self.tx.clone().send(Publish(event)).await.is_ok()
+    }
+
     pub fn start() -> (JoinHandle<()>, SseExchange) {
         let (tx, mut rx) = channel::<Command>(100);
         let task=tokio::spawn(async move {
@@ -75,7 +88,7 @@ impl SseExchange {
                     },
                     Command::Publish(event) => {
                         match clients.get(&event.client_id) {
-                            Some(tx)=> tx.send(Ok(Bytes::from(event.payload))).await.unwrap(),
+                            Some(tx)=> tx.send(Ok(Bytes::from(format!("data: {}\n\n", event.payload)))).await.unwrap(),
                             None => info!(client_id=&event.client_id[..], "client no longer registered"),
                         }
                     },
