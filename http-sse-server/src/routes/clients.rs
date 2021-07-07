@@ -5,7 +5,7 @@ use crate::sse_exchange::{SseExchange};
 #[get("/clients/{client_id}/events")]
 pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl Responder {
     let client_id = req.match_info().query("client_id");
-    let x =match (*sse_exchange).connect(client_id).await {
+    match (*sse_exchange).connect(client_id).await {
         Ok(rx)=>{
             HttpResponse::Ok()
                 .append_header(("content-type", "text/event-stream"))
@@ -19,7 +19,5 @@ pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl
             HttpResponse::InternalServerError()
                 .finish()
         }
-    };
-    x
-
+    }
 }
