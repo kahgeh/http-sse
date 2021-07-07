@@ -57,7 +57,7 @@ impl SseExchange {
             error!(client_id=client_id,"error attempting to connect");
             return Err(FailToEstablishConnection)
         }
-
+        info!("returning receiver stream");
         Ok(ReceiverStream::new(rx))
     }
 
@@ -69,7 +69,8 @@ impl SseExchange {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     Command::Connect(client) => {
-                        client.sender.send(Ok(Bytes::from("connection established"))).await.unwrap();
+                        info!("sending 'connection established'...");
+                        client.sender.send(Ok(Bytes::from("data: connection established\n\n"))).await.unwrap();
                         clients.insert(client.id, client.sender);
                     },
                     Command::Publish(event) => {
