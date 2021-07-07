@@ -8,6 +8,9 @@ use actix_web::web::Data;
 use crate::settings::AppSettings;
 use crate::app_ops::{ping, app_info};
 use crate::routes::subscribe;
+use tokio::task::JoinHandle;
+
+use crate::sse_exchange::{SseExchange};
 
 pub struct HttpServerSettings {
     url_prefix: String,
@@ -53,12 +56,16 @@ impl Application {
         }
     }
 
-    pub fn start(&self, app_settings:AppSettings) -> Result<Server, std::io::Error>{
+    pub fn start(&self, app_settings:AppSettings) -> Result<(Server, JoinHandle<()>), std::io::Error>{
         let listener = self.settings.create_listener()?;
         let url_prefix = self.settings.url_prefix.clone();
+        let (sse_exchange_task, sse_exchange) = SseExchange::start();
+        let sse_exchange= Data::new(sse_exchange);
+
         let server=HttpServer::new( move ||{
             App::new()
                 .app_data(Data::new(app_settings.clone()))
+                .app_data(sse_exchange.clone())
                 .wrap(TracingLogger::<HttpAppRootSpanBuilder>::new())
                 .service(
                     web::scope(url_prefix.as_str())
@@ -69,8 +76,7 @@ impl Application {
             })
             .listen(listener)?
             .run();
-
-        Ok(server)
+        Ok((server,sse_exchange_task))
     }
 }
 
