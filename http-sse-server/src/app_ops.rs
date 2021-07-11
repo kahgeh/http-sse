@@ -13,6 +13,7 @@ pub const DATE_ISO_FORMAT:&str="[year]-[month]-[day] [hour]:[minute]:[second]";
 pub struct RuntimeInfo {
     pub git_commit_id: String,
     pub started : String,
+    pub ip: String,
 }
 
 impl RuntimeInfo {
@@ -24,6 +25,7 @@ impl RuntimeInfo {
         RuntimeInfo {
             git_commit_id,
             started: systemtime_strftime(SystemTime::now(), DATE_ISO_FORMAT),
+            ip: String::from("127.0.0.1"),
         }
     }
 }

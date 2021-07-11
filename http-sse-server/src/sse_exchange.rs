@@ -82,7 +82,7 @@ impl SseExchange {
             while let Some(cmd) = rx.recv().await {
                 match cmd {
                     Command::Connect(client) => {
-                        info!("sending 'connection established'...");
+                        info!("acknowledge connect request...");
                         client.sender.send(Ok(Bytes::from("data: connection established\n\n"))).await.unwrap();
                         clients.insert(client.id, client.sender);
                     },

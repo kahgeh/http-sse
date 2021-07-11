@@ -1,5 +1,10 @@
 debug = "false"
 port = "8080"
-url_prefix = ""
+url_prefix = "/sse"
 
 log_level = "INFO"
+
+broadcast_event = "true"
+compute="K8s"
+
+k8s_namespace="default"
