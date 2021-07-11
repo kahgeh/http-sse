@@ -1,10 +1,14 @@
-use actix_web::{get, put, Responder, HttpResponse, web::{Data}, HttpRequest};
-use tracing::{error};
+use actix_web::{get, post, Responder, HttpResponse, web::{Data}, HttpRequest};
+use tracing::{error,info};
 use crate::sse_exchange::{SseExchange, Event};
 use actix_web::web::Bytes;
+use crate::settings::Settings;
+use crate::peers::{Compute, PeerEndpoint};
+use crate::contracts::{EventBroadcastRequest};
+use actix_web::web::Json;
 
 #[get("/clients/{client_id}/events")]
-pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl Responder {
+pub async fn receive_connect_request(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl Responder {
     let client_id = req.match_info().query("client_id");
     match (*sse_exchange).connect(client_id).await {
         Ok(rx)=>{
@@ -23,8 +27,11 @@ pub async fn subscribe(req: HttpRequest, sse_exchange: Data<SseExchange>)-> impl
     }
 }
 
-#[put("/clients/{client_id}/events")]
-pub async fn publish(req: HttpRequest, body: Bytes, sse_exchange: Data<SseExchange>) -> impl Responder {
+#[post("/clients/{client_id}/events")]
+pub async fn receive_send_request(req: HttpRequest, body: Bytes,
+                                  settings: Data<Settings>,
+                                  discovery_service: Data<Compute>,
+                                  sse_exchange: Data<SseExchange>) -> impl Responder {
     let client_id = req.match_info().query("client_id");
 
     let result_converting_body_to_string = String::from_utf8(body.to_vec());
@@ -37,7 +44,43 @@ pub async fn publish(req: HttpRequest, body: Bytes, sse_exchange: Data<SseExchan
 
     let payload = result_converting_body_to_string.unwrap();
 
-    if !(*sse_exchange).publish(Event::new(client_id, &payload[..])).await {
+    if settings.broadcast_event {
+        info!("broadcast to peers");
+        return match discovery_service.get_service_endpoints().await {
+            Ok(peer_endpoints) => {
+                for peer_endpoint in peer_endpoints {
+                    let PeerEndpoint{ip, port} = peer_endpoint;
+                    info!(ip=&ip[..],"broadcasting");
+                    let client = reqwest::Client::new();
+                    client.post(format!("http://{}:{}/broadcasts/events", &ip, port))
+                        .header("client-id", client_id)
+                        .json(&EventBroadcastRequest{
+                            client_id: String::from(client_id),
+                            payload: payload.clone(),
+                        })
+                        .send()
+                        .await.expect("fail to broadcast");
+                }
+                HttpResponse::Ok().finish()
+            },
+            Err(_) => {
+                error!("fail to determine peers");
+                HttpResponse::InternalServerError().finish()
+            }
+        }
+    }
+
+    if !sse_exchange.publish(Event::new(client_id, &payload[..])).await {
+        error!("fail to send events");
+        return HttpResponse::InternalServerError()
+            .finish();
+    }
+    HttpResponse::Ok().finish()
+}
+
+#[post("broadcasts/events")]
+pub async fn receive_send_broadcast(broadcast_request: Json<EventBroadcastRequest>, sse_exchange: Data<SseExchange>) -> impl Responder{
+    if !sse_exchange.publish(broadcast_request.into()).await {
         error!("fail to send events");
         return HttpResponse::InternalServerError()
             .finish();

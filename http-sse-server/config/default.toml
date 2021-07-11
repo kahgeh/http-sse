@@ -3,3 +3,6 @@ port = "8080"
 url_prefix = ""
 
 log_level = "INFO"
+
+broadcast_event = "false"
+compute="DevBox"

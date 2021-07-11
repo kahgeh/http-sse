@@ -31,6 +31,11 @@ pub struct Settings {
     pub url_prefix: String,
 
     pub log_level: String,
+
+    pub broadcast_event: bool,
+    pub compute: String,
+
+    pub k8s_namespace: String,
 }
 
 impl Settings {

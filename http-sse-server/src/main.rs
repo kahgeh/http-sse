@@ -6,6 +6,7 @@ mod contracts;
 mod mappers;
 mod routes;
 mod sse_exchange;
+mod peers;
 
 use tokio::{join};
 use tracing::{info};
