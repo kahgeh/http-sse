@@ -5,3 +5,4 @@ dist
 **/.idea
 **/target
 .gitconfig
+**/local.toml
