@@ -27,8 +27,13 @@ async fn main()-> tokio::io::Result<()> {
     let ApplicationStartUpDisplayInfo{ environment_name, is_debug} = (&app_settings).into();
     info!(Environment=&environment_name[..], IsDebug=&is_debug[..], "Application started");
 
-    //server.await
-    join!(server, sse_exchange_task);
+    let (server_result, _)=join!(server, sse_exchange_task);
+
+    if server_result.is_err() {
+        return Err(server_result.unwrap_err())
+    }
 
     Ok(())
+
+
 }
