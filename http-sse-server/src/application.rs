@@ -13,10 +13,9 @@ use crate::settings::AppSettings;
 use crate::app_ops::{ping, app_info};
 use crate::routes::{receive_connect_request, receive_send_request, receive_send_broadcast};
 
-use crate::sse_exchange::{SseExchange, Command};
+use crate::sse_exchange::{SseExchange};
 use crate::peers;
 use crate::application::StartUpError::{FailToParseCompute, FailToStartHttpServer, FailToStartTcpListener};
-use tokio::sync::mpsc::Sender;
 
 #[derive(Debug, Display, Error)]
 pub enum StartUpError {

@@ -9,12 +9,11 @@ mod sse_exchange;
 mod peers;
 
 use futures::future::{join_all};
-use tokio::{join, select, signal::{ctrl_c}};
+use tokio::{select, signal::{ctrl_c}};
 use tracing::{error, info, debug};
 use crate::settings::{AppSettings};
 use crate::logging::{LoggingBuilder};
 use crate::application::{Application, ApplicationStartUpDisplayInfo, StartUpError};
-use std::error::Error;
 
 #[actix_web::main]
 async fn main()-> Result<(), StartUpError> {
@@ -39,7 +38,7 @@ async fn main()-> Result<(), StartUpError> {
 
     let services_task = join_all(vec![tokio::spawn(server),sse_exchange_task]) ;
     select! {
-        result = services_task => {
+        _ = services_task => {
             info!("services stopped");
         }
         _ = ctrl_c() => {
