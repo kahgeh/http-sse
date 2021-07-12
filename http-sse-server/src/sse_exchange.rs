@@ -74,10 +74,12 @@ impl SseExchange {
         self.tx.clone().send(Publish(event)).await.is_ok()
     }
 
-    pub fn start() -> (JoinHandle<()>, SseExchange) {
+    pub fn start() -> (JoinHandle<tokio::io::Result<()>>, SseExchange) {
         let (tx, mut rx) = channel::<Command>(100);
         let task=tokio::spawn(async move {
             let mut clients: HashMap<String, Sender<Result<Bytes, CustomError>>> = HashMap::new();
+            // todo: schedule to close stream and remove clients based on some strategy
+            //
             info!("sse exchange started");
             while let Some(cmd) = rx.recv().await {
                 match cmd {
@@ -93,10 +95,12 @@ impl SseExchange {
                         }
                     },
                     Command::Shutdown => {
+                        info!("stop receiving events");
                         rx.close();
                     }
                 }
             }
+            Ok(())
         });
         (task,SseExchange{
             tx

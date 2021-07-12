@@ -8,32 +8,45 @@ mod routes;
 mod sse_exchange;
 mod peers;
 
-use tokio::{join};
-use tracing::{info};
+use futures::future::{join_all};
+use tokio::{join, select, signal::{ctrl_c}};
+use tracing::{error, info, debug};
 use crate::settings::{AppSettings};
 use crate::logging::{LoggingBuilder};
-use crate::application::{Application, ApplicationStartUpDisplayInfo};
+use crate::application::{Application, ApplicationStartUpDisplayInfo, StartUpError};
+use std::error::Error;
 
 #[actix_web::main]
-async fn main()-> tokio::io::Result<()> {
+async fn main()-> Result<(), StartUpError> {
     let app_settings = AppSettings::load();
 
     LoggingBuilder::new((&app_settings).into())
         .init_default();
 
-    let (server, sse_exchange_task) = Application::new((&app_settings).into())
-        .start(app_settings.clone()).unwrap();
+    debug!("app settings loaded {:?}", app_settings);
+
+    let (server, sse_exchange_task, sse_exchange)= match Application::new((&app_settings).into())
+        .start(app_settings.clone()){
+        Ok((server, sse_exchange_task, sse_exchange)) => (server, sse_exchange_task, sse_exchange),
+        Err(e)=> {
+            error!("Fail to start services {:?}", e);
+            return Err(e);
+        }
+    };
 
     let ApplicationStartUpDisplayInfo{ environment_name, is_debug} = (&app_settings).into();
     info!(Environment=&environment_name[..], IsDebug=&is_debug[..], "Application started");
 
-    let (server_result, _)=join!(server, sse_exchange_task);
-
-    if server_result.is_err() {
-        return Err(server_result.unwrap_err())
-    }
+    let services_task = join_all(vec![tokio::spawn(server),sse_exchange_task]) ;
+    select! {
+        result = services_task => {
+            info!("services stopped");
+        }
+        _ = ctrl_c() => {
+            info!("application terminated because of cancellation signal ctrl+c");
+        }
+    };
 
     Ok(())
-
 
 }
