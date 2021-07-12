@@ -68,7 +68,7 @@ impl Application {
         }
     }
 
-    pub fn start(&self, app_settings:AppSettings) -> Result<(Server, JoinHandle<tokio::io::Result<()>>, Data<SseExchange>), StartUpError>{
+    pub fn start(&self, app_settings:AppSettings) -> Result<(Server, JoinHandle<tokio::io::Result<()>>), StartUpError>{
         let listener = match self.settings.create_listener() {
             Ok(l)=>l,
             Err(e)=> return Err(FailToStartTcpListener(e)),
@@ -77,7 +77,6 @@ impl Application {
         let url_prefix = self.settings.url_prefix.clone();
         let (sse_exchange_task, sse_exchange) = SseExchange::start();
         let sse_exchange= Data::new(sse_exchange);
-        let sse_exchange_as_return_value=sse_exchange.clone();
         let compute_name = app_settings.clone().settings.compute;
         let compute = match peers::Compute::from_str(
             &compute_name,
@@ -108,7 +107,7 @@ impl Application {
             })
             .listen(listener).map_err(|e|FailToStartHttpServer(e))?;
 
-        Ok((server.run(),sse_exchange_task,sse_exchange_as_return_value))
+        Ok((server.run(),sse_exchange_task))
     }
 }
 
