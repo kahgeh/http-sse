@@ -1,12 +1,11 @@
 use actix_web::dev::Server;
 use actix_web::{ App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
-use crate::logging::HttpAppRootSpanBuilder;
 use std::net::TcpListener;
 use std::io::Error;
+use tokio::task::JoinHandle;
 use actix_web::web::Data;
 use tracing::{error};
-use tokio::task::JoinHandle;
 use derive_more::{Display, Error};
 
 use crate::settings::AppSettings;
@@ -16,6 +15,7 @@ use crate::routes::{receive_connect_request, receive_send_request, receive_send_
 use crate::sse_exchange::{SseExchange};
 use crate::peers;
 use crate::application::StartUpError::{FailToParseCompute, FailToStartHttpServer, FailToStartTcpListener};
+use crate::logging::HttpAppRootSpanBuilder;
 
 #[derive(Debug, Display, Error)]
 pub enum StartUpError {

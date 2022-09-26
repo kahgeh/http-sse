@@ -24,8 +24,8 @@ async fn main()-> Result<(), StartUpError> {
 
     debug!("app settings loaded {:?}", app_settings);
 
-    let (server, sse_exchange_task)= match Application::new((&app_settings).into())
-        .start(app_settings.clone()){
+        let (server, sse_exchange_task)= match Application::new((&app_settings).into())
+            .start(app_settings.clone()){
         Ok((server, sse_exchange_task)) => (server, sse_exchange_task),
         Err(e)=> {
             error!("Fail to start services {:?}", e);

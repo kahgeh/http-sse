@@ -75,7 +75,7 @@ impl SseExchange {
     }
 
     pub fn start() -> (JoinHandle<tokio::io::Result<()>>, SseExchange) {
-        let (tx, mut rx) = channel::<Command>(100);
+        let (tx, mut rx) = channel::<Command>(1000);
         let task=tokio::spawn(async move {
             let mut clients: HashMap<String, Sender<Result<Bytes, CustomError>>> = HashMap::new();
             // todo: schedule to close stream and remove clients based on some strategy
